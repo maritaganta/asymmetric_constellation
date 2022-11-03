@@ -12,7 +12,7 @@ we = (2 * np.pi + 2 * np.pi / 365.26) / (24 * 3600)  # [rad/s] earth's angular v
 exp = np.exp(1)
 
 
-def kep2car(a, e, incl, W_o, wpo, TAo, n_periods, t_length):
+def kep2car(a, e, incl, W_o, wpo, TAo, n_periods, t_length, year, month, day):
     # Propagates the orbit over the specified time interval, transforming
     # the position and velocity vectors into the earth-fixed frame
 
@@ -61,7 +61,8 @@ def kep2car(a, e, incl, W_o, wpo, TAo, n_periods, t_length):
     nu = TA
     om = wpo + om_d * times
 
-    g0 = g0_fun(2022, 4, 1)
+    #g0 = g0_fun(2022, 4, 1)
+    g0 = g0_fun(year, month, day)
 
     th = we * (times - to) + g0
     # th = 0
@@ -958,7 +959,7 @@ def pair_pop_mod(N_s, N_p, N_d, Om_0, M_0, incl, a, e, n_step, step_l, tim, n_pe
     return Om_k, M_k, wpp, taa, thh, ii
 
 
-def sat_pop_mod(a, e, incl, W_o_v, wpo, TAo_v, n_periods, t_length, n_steps):
+def sat_pop_mod(a, e, incl, W_o_v, wpo, TAo_v, n_periods, t_length, n_steps, year, month, day):
     n_pairs = W_o_v.shape[0]
 
     r_v = np.empty((3, n_pairs, n_steps))
@@ -967,7 +968,7 @@ def sat_pop_mod(a, e, incl, W_o_v, wpo, TAo_v, n_periods, t_length, n_steps):
     # np.array([W_o_v[i]])
 
     for i in np.arange(n_pairs):
-        (r, v, step_l, W, wp, TA, theta, M, times) = kep2car(a, e, incl, W_o_v[i], TAo_v[i], wpo, n_periods, t_length)
+        (r, v, step_l, W, wp, TA, theta, M, times) = kep2car(a, e, incl, W_o_v[i], TAo_v[i], wpo, n_periods, t_length, year, month, day)
         r_v[:, i, :] = r
         v_v[:, i, :] = v
 
@@ -976,7 +977,7 @@ def sat_pop_mod(a, e, incl, W_o_v, wpo, TAo_v, n_periods, t_length, n_steps):
     return r_v, v_v
 
 
-def const_rv_vec(Om_index_vec, incl_index_vec, N_s, N_p, N_d, W_o, incl, a, e, n_step, step_l, times, wpo, n_periods):
+def const_rv_vec(Om_index_vec, incl_index_vec, N_s, N_p, N_d, W_o, incl, a, e, n_step, step_l, times, wpo, n_periods, year, month, day):
     n_subconst = Om_index_vec.shape[0]
 
     r_const = np.empty((3, n_subconst * n_step, n_step))  # 3 coordinates x n. pairs x n. timesteps
@@ -992,7 +993,7 @@ def const_rv_vec(Om_index_vec, incl_index_vec, N_s, N_p, N_d, W_o, incl, a, e, n
         Om_pop, M_pop, wpp, taa, thh, ii = pair_pop_mod(N_s, N_p, N_d, W_o[W_opt, 0], 0, incl[incl_opt], a_b, e, n_step,
                                                         step_l[0, incl_opt], times[0, :, 0, incl_opt], n_periods)
         # r_v, v_v = sat_pop(a_b, e, incl[ind_i], Om_pop, wpo, M_pop, n_periods, step_l[:, ind_i], n_step)
-        r_v, v_v = sat_pop_mod(a_b, e, incl[incl_opt], Om_pop, wpo, M_pop, n_periods, step_l[:, incl_opt], n_step)
+        r_v, v_v = sat_pop_mod(a_b, e, incl[incl_opt], Om_pop, wpo, M_pop, n_periods, step_l[:, incl_opt], n_step, year, month, day)
 
         r_const[:, i * n_step: (i + 1) * n_step, :] = r_v
         v_const[:, i * n_step: (i + 1) * n_step, :] = v_v
@@ -1325,6 +1326,11 @@ def const_stats(cov_pop, const_vec, rev_time, n_step, n_targets, step_l):
 
 def constellation_function():
     # Inputs
+    # date of simulation
+    year = 2022
+    month = 4
+    day = 1
+
     e = 0  # eccentricity
 
     N_p = 13  #
@@ -1388,7 +1394,7 @@ def constellation_function():
     print('Subconstellations:', Om_index_vec, incl_index_vec)
 
     a_b, r_const, v_const, Om_pop, M_pop = const_rv_vec(Om_index_vec, incl_index_vec, N_s, N_p, N_d, W_o, incl, a, e,
-                                                        n_step, step_l, times, wpo, n_periods)
+                                                        n_step, step_l, times, wpo, n_periods, year, month, day)
 
     cov_pop = filt_pop(a_b, r_const, v_const, r_t, f_acr, f_alo)
 
@@ -1425,40 +1431,49 @@ def constellation_function():
 
 
 def asymmetric():
-    e = 0
+    # --- INPUTS ---
+    # date of simulation
+    year = 2022
+    month = 4
+    day = 1
 
-    N_p = 13
-    N_d = 1
-    tau = N_p / N_d
-    wpo = 0 * deg  # argument of perigee
+    e = 0     # eccentricity
 
-    TAo = 0 * deg  # true Anomaly
+    N_p = 13  # number of orbit periods. Correlated with repeating ground track orbit theory
+    N_d = 1   # number of Grenwich nodal periods. Correlated with repeating ground track orbit theory
+    tau = N_p / N_d   # directly correlated with altitude
+
+    wpo = 0 * deg  # (initial) argument of perigee
+
+    TAo = 0 * deg  # (initial) true Anomaly
     n_periods = N_p  # number of periods for which ground track is to be plotted
 
-    n_OM = 2 * 360
-    Wo = 0 * deg  # RAAN Right Ascension of the Ascending Node
-    W_o = Wo + np.array([np.linspace(0, 2 * np.pi, n_OM)]).T
+    n_OM = 2 * 360  # number of RAAN values in RAAN range
+    Wo = 0 * deg  # (initial) RAAN Right Ascension of the Ascending Node
+    W_o = Wo + np.array([np.linspace(0, 2 * np.pi, n_OM)]).T   # create RAAN range for orbit population
 
-    n_incl = 10
-    incl_min = 60
-    incl_max = 70
-    incl = np.linspace(incl_min, incl_max, n_incl) * deg
+    n_incl = 10     # number of inclination values in inclination range
+    incl_min = 60   # minimum inclination value range
+    incl_max = 70   # maximum inclination value range
+    incl = np.linspace(incl_min, incl_max, n_incl) * deg  # create inclination range for orbit population
 
     t_length = 60  # [sec / step] duration of each timestep
 
-    f_acr = 31 * deg
-    f_alo = 16 * deg
+    f_acr = 31 * deg  # across track angle
+    f_alo = 16 * deg  # along track angle
 
     rev_time = 120  # [min] revisit time
     print('Revisit time: ', rev_time, '[min] \n')
 
-    lon_t, lat_t = read_targets()
+    # ---- End Inputs ----
 
-    r_t = latlon2car(lat_t, lon_t, Re)
+    lon_t, lat_t = read_targets()     # import of targets
 
-    a = tau2a(tau, e, incl, J2, Re, we, mu)
+    r_t = latlon2car(lat_t, lon_t, Re)  # transform targets from lat/lon to x,y,z coordinates
 
-    (r, v, step_l, W, wp, TA, theta, MM, times) = kep2car(a, e, incl, W_o, wpo, TAo, n_periods, t_length)
+    a = tau2a(tau, e, incl, J2, Re, we, mu)   # calculate altitude based on tau, e, inclination
+
+    (r, v, step_l, W, wp, TA, theta, MM, times) = kep2car(a, e, incl, W_o, wpo, TAo, n_periods, t_length, year, month, day)   # propagation of orbits
 
     print('Orbits propagated \n')
 
@@ -1467,21 +1482,21 @@ def asymmetric():
     N_s = n_step / div_par  # Number satellites poplutation
     N_t = lat_t.shape[0]  # Number targets
 
-    cov_steps = cov_steps_fun(a, r, v, r_t, f_acr, f_alo, rev_time, n_step)
+    cov_steps = cov_steps_fun(a, r, v, r_t, f_acr, f_alo, rev_time, n_step)     # create access profiles
 
-    Om_index_vec, incl_index_vec = set_cover_prblm_targets(cov_steps, r_t, rev_time, n_step)
+    Om_index_vec, incl_index_vec = set_cover_prblm_targets(cov_steps, r_t, rev_time, n_step)   # choose how many and which subconstellations
     print('Subconstellations:', Om_index_vec, incl_index_vec)
 
     a_b, r_const, v_const, Om_pop, M_pop = const_rv_vec(Om_index_vec, incl_index_vec, N_s, N_p, N_d, W_o, incl, a, e,
-                                                        n_step, step_l, times, wpo, n_periods)
+                                                        n_step, step_l, times, wpo, n_periods, year, month, day)    # altitude, position and velocity vector for constellation
 
-    cov_pop = filt_pop(a_b, r_const, v_const, r_t, f_acr, f_alo)
+    cov_pop = filt_pop(a_b, r_const, v_const, r_t, f_acr, f_alo)  # analysis of coverage
 
-    cont_time_check(cov_pop, n_step)
+    cont_time_check(cov_pop, n_step)   # check if coverage is doing ok
 
-    incl_opt = incl_index_vec[0]
+    incl_opt = incl_index_vec[0]    # optimal inclination
 
-    n_targets = lon_t.shape[0]
+    n_targets = lon_t.shape[0]     # number of targets
     uni_mat = cov_uni(rev_time, step_l[0, incl_opt], N_d, n_step, n_targets)
 
     set_mat = cov_set(cov_pop, uni_mat, rev_time, n_step, N_d)
@@ -1492,18 +1507,18 @@ def asymmetric():
     print(set_mat)
     print('--')
 
-    const_vec, pry_vec = cov_probl(set_mat, N_t)
+    const_vec, pry_vec = cov_probl(set_mat, N_t)    # solves set cover problem (satellite distribution)
     print(pry_vec)
 
-    Om_const, M_const = const_info(const_vec, Om_pop, M_pop, n_step)
+    Om_const, M_const = const_info(const_vec, Om_pop, M_pop, n_step)   # stores RAAN and mean anomaly information for constellation
 
     best_incl = incl_index_vec[0]  # they are the same anyways
-    const_mat = const_mat_fun(a_b, e, incl[best_incl], Om_const, M_const, wpo)
+    const_mat = const_mat_fun(a_b, e, incl[best_incl], Om_const, M_const, wpo)    # constellation matrix
 
-    const_verfy(cov_pop, const_vec, rev_time, n_step, n_targets, N_d)
+    const_verfy(cov_pop, const_vec, rev_time, n_step, n_targets, N_d)  # verification if revisit time is guaranteed
 
     incl_opt = incl_index_vec[0]
-    const_stats(cov_pop, const_vec, rev_time, n_step, n_targets, step_l[:, incl_opt])
+    const_stats(cov_pop, const_vec, rev_time, n_step, n_targets, step_l[:, incl_opt])   # covering analytics
 
     return const_mat
 
