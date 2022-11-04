@@ -2,6 +2,8 @@ import numpy as np
 from numpy import linalg as LA
 import matplotlib.pyplot as plt
 from matplotlib import pyplot as plt
+import time
+import cProfile
 
 # Constants
 deg = np.pi / 180  # converts degrees to radiant
@@ -1523,4 +1525,17 @@ def asymmetric():
     return const_mat
 
 
+
+
+# Grab Currrent Time Before Running the Code
+start = time.time()
+
 constellation_matrix = asymmetric()
+
+# Grab Currrent Time After Running the Code
+end = time.time()
+# Subtract Start Time from The End Time
+total_time = end - start
+print("\n execution time: " + str(total_time) + " seconds")
+
+cProfile.run('asymmetric()')
